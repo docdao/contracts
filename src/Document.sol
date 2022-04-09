@@ -54,12 +54,17 @@ contract Document is ERC1155, ReentrancyGuard {
 
     // records absolutely when a vote will end after first child has been created for a parent
     // uint256(max) is the marker for a vote that has ended
+<<<<<<< Updated upstream:src/Document.sol
     mapping(uint256 => uint256) public docsVoteEnd;
+=======
+    mapping(uint256 => uint256) public docsVoteEnd; 
+>>>>>>> Stashed changes:contracts/Document.sol
 
     // VIEW
     function thresholds(uint256 idx) public view returns (uint256) {
         return docsThresholds[idx];
     }
+<<<<<<< Updated upstream:src/Document.sol
 
     function docHash(uint256 idx) public view returns(bytes32) {
         return docsHashes[idx];
@@ -81,6 +86,9 @@ contract Document is ERC1155, ReentrancyGuard {
         return docsVoted[parent].length();
     }
 
+=======
+    
+>>>>>>> Stashed changes:contracts/Document.sol
     // PUBLIC FN
     function createRootDocument(bytes32 docHash, address[] memory votingAddresses, uint256 threshold, uint256 voteEndLength) public returns (uint256 createdDoc) {
         _mint(msg.sender, _tokenIds.current(), 1, "");
@@ -164,7 +172,11 @@ contract Document is ERC1155, ReentrancyGuard {
 
         // determine winner (if exists over children set)
         // TODO: this isn't scalable, will need to be re-written for >20 children
+<<<<<<< Updated upstream:src/Document.sol
 
+=======
+        
+>>>>>>> Stashed changes:contracts/Document.sol
         // TODO: known to be wrong if we hit the max in solidity
         uint256 currentWinner = type(uint256).max;
         uint256 mostVotes = 0;
@@ -188,7 +200,11 @@ contract Document is ERC1155, ReentrancyGuard {
 
         // FAILURE STATE
         // 1 - vote failed
+<<<<<<< Updated upstream:src/Document.sol
         // 2 - tie state
+=======
+        // 2 - tie state 
+>>>>>>> Stashed changes:contracts/Document.sol
         // 3 - no clear winner
         if ((currentWinner == type(uint256).max) || tieState || mostVotes >= docsThresholds[docId]) {
             _flushChildren(docId, 0);
