@@ -17,6 +17,7 @@ contract Document is ERC1155, ReentrancyGuard {
     // CONSTRUCTOR
     // TODO: jordan change this to whatever
     constructor() ERC1155("https://localhost/api/item/{id}.json") {
+        _tokenIds.reset();
         _tokenIds.increment();
     }
 
@@ -54,6 +55,11 @@ contract Document is ERC1155, ReentrancyGuard {
     // records absolutely when a vote will end after first child has been created for a parent
     // uint256(max) is the marker for a vote that has ended
     mapping(uint256 => uint256) public docsVoteEnd; 
+
+    // VIEW
+    function thresholds(uint256 idx) public view returns (uint256) {
+        return docsThresholds[idx];
+    }
     
     // PUBLIC FN
     function createRootDocument(bytes32 docHash, address[] memory votingAddresses, uint256 threshold, uint256 voteEndLength) public returns (uint256 createdDoc) {
@@ -132,12 +138,11 @@ contract Document is ERC1155, ReentrancyGuard {
         // ensure token exists
         require(_tokenIds.current() >= docId, "doc id DNE");
 
-        // determine if the vote has ended or not
-        require(block.timestamp < docsVoteEnd[docId], "vote has not ended");
+        // determine if the vote has ended or not by parent
+        require(block.timestamp > docsVoteEnd[docId], "vote has not ended");
 
         // determine winner (if exists over children set)
         // TODO: this isn't scalable, will need to be re-written for >20 children
-
         
         // TODO: known to be wrong if we hit the max in solidity
         uint256 currentWinner = type(uint256).max;
@@ -163,13 +168,26 @@ contract Document is ERC1155, ReentrancyGuard {
         // FAILURE STATE
         // 1 - vote failed
         // 2 - tie state 
-        // 4 - no clear winner
-        if (currentWinner == type(uint256).max || tieState || mostVotes < docsThresholds[docId]) {
+        // 3 - no clear winner
+        if ((currentWinner == type(uint256).max) || tieState || mostVotes >= docsThresholds[docId]) {
             _flushChildren(docId, 0);
             _endVote(docId);
 
             // TODO: cleanup later with valid codes
-            emit VoteRejected(docId, 1);
+            uint256 reason;
+            if (currentWinner == type(uint256).max) {
+                reason = 1;
+            }
+
+            if (tieState) {
+                reason = 2;
+            }
+
+            if (mostVotes >= docsThresholds[docId]) {
+                reason = 3;
+            }
+
+            emit VoteRejected(docId, reason);
 
             return 0;
         }

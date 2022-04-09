@@ -18,6 +18,7 @@ contract DocumentTest is DSTest {
     address[] voterAddresses;
 
     uint256 parentDoc;
+    uint256 childDoc;
 
     function setUp() public {
         d = new Document();
@@ -29,33 +30,74 @@ contract DocumentTest is DSTest {
         voterAddresses.push(alice);
         voterAddresses.push(bob);
         voterAddresses.push(charlie);
+
+        emit log_named_address("doc id: ", address(d));
     }
 
-    function testCreateDoc() public {
+    function createDoc() public {
         bytes32 docHash = "2323";
-        uint256 threshold = 3;
+        uint256 threshold = 2;
         uint256 voteEndLength = 20;
 
         vm.startPrank(alice);
 
-        uint256 docId = d.createRootDocument(docHash, voterAddresses, threshold, voteEndLength);
+        parentDoc = d.createRootDocument(docHash, voterAddresses, threshold, voteEndLength);
 
-        emit log_uint(docId);
+        emit log_named_uint("parent doc id", parentDoc);
 
         vm.stopPrank();
-
-        assertGt(docId, 0);
     }
 
-    function testDocEdit() public {
+    function createDocEdit() public {
         bytes32 docHash = "2222";
 
         vm.startPrank(alice);
 
-        uint256 docId = d.createDocumentEdit(docHash, parentDoc);
+        childDoc = d.createDocumentEdit(docHash, parentDoc);
+
+        vm.stopPrank();
+    }
+
+    function testCreateDoc() public {
+        createDoc();
+
+        assertGt(parentDoc, 0);
+    }
+
+    function testDocEdit() public {
+        createDoc();
+        createDocEdit();
+
+        assertGt(childDoc, parentDoc);
+    }
+
+    function testVotesSuccess() public {
+        vm.warp(10);
+
+        createDoc();
+
+        createDocEdit();
+
+        vm.startPrank(bob);
+
+        d.castVote(childDoc);
 
         vm.stopPrank();
 
-        assertGt(docId, parentDoc);
+        vm.startPrank(charlie);
+
+        d.castVote(childDoc);
+
+        vm.stopPrank();
+
+        vm.startPrank(alice);
+
+        vm.warp(100);
+
+        d.finalizeVoting(parentDoc);
+
+        vm.stopPrank();
     }
+
+
 }
