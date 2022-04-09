@@ -1,11 +1,11 @@
 //SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.0;
 
-import "openzeppelin-contracts/contracts/security/ReentrancyGuard.sol";
-import "openzeppelin-contracts/contracts/token/ERC1155/ERC1155.sol";
-import "openzeppelin-contracts/contracts/utils/Counters.sol";
-import "openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
-import "openzeppelin-contracts/contracts/utils/math/SafeMath.sol";
+import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC1155/ERC1155.sol";
+import "@openzeppelin/contracts/utils/Counters.sol";
+import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import "@openzeppelin/contracts/utils/math/SafeMath.sol";
 
 contract Document is ERC1155, ReentrancyGuard {
     // LIB IMPORTS
@@ -50,17 +50,37 @@ contract Document is ERC1155, ReentrancyGuard {
     mapping(uint256 => uint256) public docsThresholds;
 
     // how long we wait until the Vote Ends - static and passed to children
-    mapping(uint256 => uint256) public docsVoteEndLength; 
-    
+    mapping(uint256 => uint256) public docsVoteEndLength;
+
     // records absolutely when a vote will end after first child has been created for a parent
     // uint256(max) is the marker for a vote that has ended
-    mapping(uint256 => uint256) public docsVoteEnd; 
+    mapping(uint256 => uint256) public docsVoteEnd;
 
     // VIEW
     function thresholds(uint256 idx) public view returns (uint256) {
         return docsThresholds[idx];
     }
-    
+
+    function docHash(uint256 idx) public view returns(bytes32) {
+        return docsHashes[idx];
+    }
+
+    function maxSupply() public view returns(uint256) {
+        return _tokenIds.current();
+    }
+
+    function docChildrenLen(uint256 parent) public view returns(uint256) {
+        return docsChildren[parent].length();
+    }
+
+    function docChildrenAt(uint256 parent, uint256 child) public view returns(uint256) {
+        return docsChildren[parent].at(child);
+    }
+
+    function votes(uint256 parent) public view returns(uint256) {
+        return docsVoted[parent].length();
+    }
+
     // PUBLIC FN
     function createRootDocument(bytes32 docHash, address[] memory votingAddresses, uint256 threshold, uint256 voteEndLength) public returns (uint256 createdDoc) {
         _mint(msg.sender, _tokenIds.current(), 1, "");
@@ -82,10 +102,11 @@ contract Document is ERC1155, ReentrancyGuard {
         }
 
         createdDoc = _tokenIds.current();
-        
+
         _tokenIds.increment();
 
         emit RootDocumentCreated(createdDoc, threshold, voteEndLength);
+        return createdDoc;
     }
 
     // TODO: put max on children proposal?
@@ -110,7 +131,7 @@ contract Document is ERC1155, ReentrancyGuard {
         }
 
         createdDoc = _tokenIds.current();
-        
+
         _tokenIds.increment();
 
         emit DocumentEditCreated(createdDoc, parent);
@@ -143,7 +164,7 @@ contract Document is ERC1155, ReentrancyGuard {
 
         // determine winner (if exists over children set)
         // TODO: this isn't scalable, will need to be re-written for >20 children
-        
+
         // TODO: known to be wrong if we hit the max in solidity
         uint256 currentWinner = type(uint256).max;
         uint256 mostVotes = 0;
@@ -167,7 +188,7 @@ contract Document is ERC1155, ReentrancyGuard {
 
         // FAILURE STATE
         // 1 - vote failed
-        // 2 - tie state 
+        // 2 - tie state
         // 3 - no clear winner
         if ((currentWinner == type(uint256).max) || tieState || mostVotes >= docsThresholds[docId]) {
             _flushChildren(docId, 0);
@@ -192,7 +213,7 @@ contract Document is ERC1155, ReentrancyGuard {
             return 0;
         }
 
-        // WINNING STATE 
+        // WINNING STATE
         // - mark our winner
         // - flush children
         // - cleanup
@@ -223,8 +244,8 @@ contract Document is ERC1155, ReentrancyGuard {
         // voter in set
         require(docsVotingAddresses[parent].contains(msg.sender), "voter not in voting set");
 
-        _; 
-    } 
+        _;
+    }
 
     // INTERNAL FNs
     // cleanup vote state for a parent doc and children
@@ -245,7 +266,7 @@ contract Document is ERC1155, ReentrancyGuard {
         // TODO: assume you are not a dead parent
 
         for (uint256 i = 0; docsChildren[parentDocId].length() > i; i++) {
-            // make sure we are not killing winning children 
+            // make sure we are not killing winning children
             if (docsChildren[parentDocId].at(i) != winner) {
                 docsIsDeadChild[docsChildren[parentDocId].at(i)] = true;
             }
