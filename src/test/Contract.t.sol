@@ -34,49 +34,8 @@ contract DocumentTest is DSTest {
         emit log_named_address("doc id: ", address(d));
     }
 
-    function createDoc() public {
-        bytes32 docHash = "2323";
-        uint256 threshold = 2;
-        uint256 voteEndLength = 20;
-
-        vm.startPrank(alice);
-
-        parentDoc = d.createRootDocument(docHash, voterAddresses, threshold, voteEndLength);
-
-        emit log_named_uint("parent doc id", parentDoc);
-
-        vm.stopPrank();
-    }
-
-    function createDocEdit() public {
-        bytes32 docHash = "2222";
-
-        vm.startPrank(alice);
-
-        childDoc = d.createDocumentEdit(docHash, parentDoc);
-
-        vm.stopPrank();
-    }
-
-    function testCreateDoc() public {
-        createDoc();
-
-        assertGt(parentDoc, 0);
-    }
-
-    function testDocEdit() public {
-        createDoc();
-        createDocEdit();
-
-        assertGt(childDoc, parentDoc);
-    }
-
-    function testVotesSuccess() public {
-        vm.warp(10);
-
-        createDoc();
-
-        createDocEdit();
+    function makeSimpleVote(uint256 pDoc, bytes32 docHash, uint256 warp) public {
+        createDocEdit(docHash);
 
         vm.startPrank(bob);
 
@@ -92,12 +51,72 @@ contract DocumentTest is DSTest {
 
         vm.startPrank(alice);
 
-        vm.warp(100);
+        vm.warp(warp);
 
-        d.finalizeVoting(parentDoc);
+        d.finalizeVoting(pDoc);
 
         vm.stopPrank();
     }
 
+    function createDoc() public {
+        bytes32 docHash = "2323";
+        uint256 threshold = 2;
+        uint256 voteEndLength = 20;
 
+        vm.startPrank(alice);
+
+        parentDoc = d.createRootDocument(docHash, voterAddresses, threshold, voteEndLength);
+
+       emit log_named_uint("parent doc id", parentDoc);
+
+        vm.stopPrank();
+    }
+
+    function createDocEdit(bytes32 docHash) public {
+        vm.startPrank(alice);
+
+        childDoc = d.createDocumentEdit(docHash, parentDoc);
+
+        emit log_named_uint("child doc id", childDoc);
+
+        vm.stopPrank();
+    }
+
+    function testCreateDoc() public {
+        createDoc();
+
+        assertGt(parentDoc, 0);
+    }
+
+    function testDocEdit() public {
+        createDoc();
+        createDocEdit("2323");
+
+        assertGt(childDoc, parentDoc);
+    }
+
+    function testTwoDocEdit() public {
+        createDoc();
+        createDocEdit("44232");
+        createDocEdit("2323");
+
+        assertGt(childDoc, parentDoc);
+    }
+
+    function testSimpleVotesSuccess() public {
+        vm.warp(10);
+
+        createDoc();
+
+        makeSimpleVote(parentDoc, "23322", 100);
+    }
+
+    function testTwoVotesSuccess() public {
+        vm.warp(10);
+
+        createDoc();
+
+        makeSimpleVote(parentDoc, "23322", 200);
+        makeSimpleVote(childDoc, "4232", 400);
+    }
 }
